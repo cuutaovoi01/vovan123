@@ -1,0 +1,35 @@
+﻿name: build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+
+      - name: Build arm64 + arm64e
+        run: |
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=15.0 -isysroot "$SDK" \
+            -fobjc-arc -O2 -dynamiclib -framework Foundation -framework CoreFoundation \
+            KFCrossOverIPC.m -o libCo_arm64.dylib
+          xcrun --sdk iphoneos clang -arch arm64e -miphoneos-version-min=15.0 -isysroot "$SDK" \
+            -fobjc-arc -O2 -dynamiclib -framework Foundation -framework CoreFoundation \
+            KFCrossOverIPC.m -o libCo_arm64e.dylib
+          lipo -create -output libCrossOverIPC.dylib libCo_arm64.dylib libCo_arm64e.dylib
+          lipo -info libCrossOverIPC.dylib
+          ls -la libCrossOverIPC.dylib
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libCrossOverIPC
+          path: libCrossOverIPC.dylib
